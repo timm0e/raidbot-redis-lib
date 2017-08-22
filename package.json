@@ -1,0 +1,26 @@
+{
+  "name": "raidbot-redis-lib",
+  "version": "1.0.0",
+  "description": "Redis Gateway for RaidBot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/RaidCloud/raidbot-redis-lib.git"
+  },
+  "keywords": [
+    "raidbot",
+    "redis"
+  ],
+  "author": "",
+  "license": "ISC",
+  "homepage": "https://bitbucket.org/RaidCloud/raidbot-redis-lib#readme",
+  "dependencies": {
+    "ioredis": "^3.1.4"
+  },
+  "devDependencies": {
+    "@types/ioredis": "0.0.24"
+  }
+}
