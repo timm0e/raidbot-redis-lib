@@ -103,6 +103,3 @@ function getSoundsInCategory(soundid: number): Promise<Sound[]> {
 
 module.exports.getCategories = getCategories;
 module.exports.getSoundsInCategory = getSoundsInCategory;
-
-getCategories().then((categories) => {console.log(categories); });
-getSoundsInCategory(7).then((sounds) => {console.log(sounds); }).catch((err) => {console.log(err); });
