@@ -16,7 +16,6 @@ class Sound {
   }
 }
 
-// tslint:disable-next-line:max-classes-per-file
 class Category {
 
   public id: number;
@@ -50,7 +49,6 @@ redis.defineCommand("getCategories", {
  });
 
 redis.defineCommand("getSoundsInCategory", {
-   // tslint:disable-next-line:max-line-length
    lua: `local sort = redis.call('SORT', 'categories:' .. ARGV[1] .. ':members', 'BY', 'sounds:*->name', 'ALPHA', 'GET', '#')
    local soundlist = {}
 
@@ -68,29 +66,43 @@ redis.defineCommand("getSoundsInCategory", {
 
  });
 
-function getCategories(callback: (result: Category[]) => void) {
+function getCategories(): Promise<Category[]> {
+  return new Promise((resolve, reject) => {
     (redis as any).getCategories((err: any, result: string[]) => {
-        const categories = new Array<Category>();
+      if (err) {
+        reject(err);
+        return;
+      }
+      const categories = new Array<Category>();
 
-        result.forEach((categoryString) => {
-          categories.push(JSON.parse(categoryString));
-        });
+      result.forEach((categoryString) => {
+        categories.push(JSON.parse(categoryString));
+      });
 
-        callback(categories);
-    });
+      resolve(categories);
+  });
+  });
 }
 
-function getSoundsInCategory(soundid: number, callback: (result: Sound[]) => void) {
+function getSoundsInCategory(soundid: number): Promise<Sound[]> {
+  return new Promise((resolve, reject) => {
     (redis as any).getSoundsInCategory(soundid, (err: any, result: string[]) => {
-        const sounds = new Array<Sound>();
+      if (err) {
+        reject(err);
+      }
+      const sounds = new Array<Sound>();
 
-        result.forEach((soundString) => {
-          sounds.push(JSON.parse(soundString));
-        });
+      result.forEach((soundString) => {
+        sounds.push(JSON.parse(soundString));
+      });
 
-        callback(sounds);
-    });
+      resolve(sounds);
+  });
+  });
 }
 
 module.exports.getCategories = getCategories;
 module.exports.getSoundsInCategory = getSoundsInCategory;
+
+getCategories().then((categories) => {console.log(categories); });
+getSoundsInCategory(7).then((sounds) => {console.log(sounds); }).catch((err) => {console.log(err); });
