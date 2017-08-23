@@ -225,3 +225,9 @@ export function deleteCategory(id: number): Promise<void> {
     (redis as any).deleteCategory(id, () => {resolve(); });
 });
 }
+
+export function initializeDB(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    redis.mset("sounds:id", 0, "categories:id", 0).then(() => {resolve(); });
+  });
+}
