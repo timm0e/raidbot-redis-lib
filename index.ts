@@ -83,6 +83,14 @@ redis.defineCommand("getCategoriesForSound", {
   numberOfKeys: 0,
 });
 
+redis.defineCommand("hashToJson", {
+  lua: `local objquery = redis.call('HGETALL', KEYS[1])
+  local element = {}
+  for i=1,#objquery,2 do element[objquery[i]] = objquery[i+1] end
+  return cjson.encode(element)`,
+  numberOfKeys: 1,
+});
+
 export function getCategories(): Promise<Category[]> {
   return new Promise((resolve, reject) => {
     (redis as any).getCategories((err: any, result: string[]) => {
@@ -144,6 +152,44 @@ export function getCategoriesForSound(soundid: number): Promise<Category[]> {
         }
 
         resolve(categories);
+      });
+  });
+}
+
+export function createSound(name: string, length: number, file: string): Promise<Sound> {
+  return new Promise((resolve, reject) => {
+      redis.incr("sounds:id").then((id: number) => {
+        redis.multi().sadd("sounds", id).hmset(`sounds:${id}`, "name", name, "length", length, "file", file).exec().then(() => {
+          resolve(new Sound(id, name, length, file));
+        });
+        });
+});
+}
+
+export function addSoundToCategory(soundid: number, categoryid: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    Promise.all([redis.sismember("categories", categoryid), redis.sismember("sounds", soundid)]).then(redis.multi().sadd(`sounds:${soundid}:categories`, categoryid).sadd(`categories:${categoryid}:members`, soundid).exec()).then(() => {resolve(); });
+  });
+}
+
+export function getSoundById(soundid: number): Promise<Sound> {
+  return new Promise((resolve, reject) => {
+      (redis as any).hashToJson(`sounds:${soundid}`, (err: any, result: string) => {
+        if (err) {reject(err); return; }
+
+        try {
+          resolve(JSON.parse(result));
+        } catch (error) {
+         reject(error);
+        }
+      });
+  });
+}
+
+export function createCategory(name: string): Promise<Category> {
+  return new Promise((resolve, reject) => {
+      redis.incr("categories:id").then((id: number) => {
+        return redis.multi().sadd("categories", id).set(`categories:${id}:name`, name).exec().then(resolve(new Category(id, name, 0)));
       });
   });
 }
