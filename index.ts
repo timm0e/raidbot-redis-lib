@@ -1,7 +1,7 @@
 import ioredis = require("ioredis");
 const redis: ioredis.Redis = new ioredis({ db: 0 });
 
-class Sound {
+export class Sound {
 
   public id: number;
   public name: string;
@@ -16,7 +16,7 @@ class Sound {
   }
 }
 
-class Category {
+export class Category {
 
   public id: number;
   public name: string;
@@ -66,7 +66,24 @@ redis.defineCommand("getSoundsInCategory", {
 
  });
 
-function getCategories(): Promise<Category[]> {
+redis.defineCommand("getCategoriesForSound", {
+  lua: `local soundcategories = redis.call('SMEMBERS', 'sounds:'..ARGV[1]..':categories')
+  local categorylist = {}
+
+  for _, key in ipairs(soundcategories) do
+      local category = {}
+      category["id"] = key
+      category["name"] = redis.call('GET', 'categories:' .. key .. ':name')
+      category["members"] = redis.call('SMEMBERS', 'categories:' .. key .. ':members')[1]
+      table.insert(categorylist, cjson.encode(category))
+  end
+
+  return categorylist
+  `,
+  numberOfKeys: 0,
+});
+
+export function getCategories(): Promise<Category[]> {
   return new Promise((resolve, reject) => {
     (redis as any).getCategories((err: any, result: string[]) => {
       if (err) {
@@ -75,31 +92,58 @@ function getCategories(): Promise<Category[]> {
       }
       const categories = new Array<Category>();
 
-      result.forEach((categoryString) => {
-        categories.push(JSON.parse(categoryString));
-      });
+      try {
+        result.forEach((categoryString) => {
+          categories.push(JSON.parse(categoryString));
+        });
+      } catch (error) {
+        reject(error);
+      }
 
       resolve(categories);
   });
   });
 }
 
-function getSoundsInCategory(soundid: number): Promise<Sound[]> {
+export function getSoundsInCategory(categoryid: number): Promise<Sound[]> {
   return new Promise((resolve, reject) => {
-    (redis as any).getSoundsInCategory(soundid, (err: any, result: string[]) => {
+    (redis as any).getSoundsInCategory(categoryid, (err: any, result: string[]) => {
       if (err) {
         reject(err);
       }
       const sounds = new Array<Sound>();
 
-      result.forEach((soundString) => {
-        sounds.push(JSON.parse(soundString));
-      });
+      try {
+        result.forEach((soundString) => {
+          sounds.push(JSON.parse(soundString));
+        });
+      } catch (error) {
+        reject(error);
+      }
 
       resolve(sounds);
   });
   });
 }
 
-module.exports.getCategories = getCategories;
-module.exports.getSoundsInCategory = getSoundsInCategory;
+export function getCategoriesForSound(soundid: number): Promise<Category[]> {
+  return new Promise((resolve, reject) => {
+      (redis as any).getCategoriesForSound(soundid, (err: any, result: string[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const categories = new Array<Category>();
+
+        try {
+          result.forEach((categoryString) => {
+            categories.push(JSON.parse(categoryString));
+          });
+        } catch (error) {
+          reject(error);
+        }
+
+        resolve(categories);
+      });
+  });
+}
