@@ -91,6 +91,26 @@ redis.defineCommand("hashToJson", {
   numberOfKeys: 1,
 });
 
+redis.defineCommand("deleteSound", {
+  lua: `local id = ARGV[1]
+  redis.call('SREM', 'sounds', id)
+  for _, category in ipairs(redis.call('SMEMBERS', 'categories')) do
+      redis.call('SREM', 'categories:' .. category .. ':members', id)
+  end
+  redis.call('DEL', 'sounds:' .. id, 'sounds:' .. id .. ':categories')`,
+  numberOfKeys: 0,
+});
+
+redis.defineCommand("deleteCategory", {
+  lua: `local id = ARGV[1]
+  redis.call('SREM', 'categories', id)
+  for _, sound in ipairs(redis.call('SMEMBERS', 'sounds')) do
+      redis.call('SREM', 'sounds:' .. sound .. ':categories', id)
+  end
+  redis.call('DEL', 'categories:' .. id .. ':members', 'categories:' .. id .. ':name')`,
+  numberOfKeys: 0,
+});
+
 export function getCategories(): Promise<Category[]> {
   return new Promise((resolve, reject) => {
     (redis as any).getCategories((err: any, result: string[]) => {
@@ -192,4 +212,16 @@ export function createCategory(name: string): Promise<Category> {
         return redis.multi().sadd("categories", id).set(`categories:${id}:name`, name).exec().then(resolve(new Category(id, name, 0)));
       });
   });
+}
+
+export function deleteSound(id: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+      (redis as any).deleteSound(id, () => {resolve(); });
+  });
+}
+
+export function deleteCategory(id: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    (redis as any).deleteCategory(id, () => {resolve(); });
+});
 }
