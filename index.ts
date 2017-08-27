@@ -250,7 +250,13 @@ public searchSounds(search: string): Promise<Sound[]> {
       stream.on("data", (result: any[]) => {
         result.forEach((element) => {
           if (!isNaN(element)) {
-            promises.push((this.RedisClient as any).hashToJson(`sounds:${element}`).then((sound: Sound) => {sounds.push(sound); }));
+            promises.push((this.RedisClient as any)
+                .hashToJson(`sounds:${element}`)
+                .then((json: string) => {
+                  const sound: Sound = JSON.parse(json);
+                  sound.id = element;
+                  sounds.push(sound);
+                }));
           }
         });
       });
