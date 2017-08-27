@@ -29,17 +29,17 @@ export class Category {
 }
 
 export class RaidBotDB {
-  private readonly redis: ioredis.Redis;
+  public readonly RedisClient: ioredis.Redis;
 
   constructor(connname: string, database?: number) {
-    this.redis = new ioredis(
+    this.RedisClient = new ioredis(
       {
         connectionName: connname,
         db: (database) ? database : 0,
       },
     );
 
-    this.redis.defineCommand("getCategories", {
+    this.RedisClient.defineCommand("getCategories", {
         lua: `local sort = redis.call('SORT', 'categories', 'BY', 'categories:*:name', 'ALPHA', 'GET', '#')
       local categorylist = {}
 
@@ -54,7 +54,7 @@ export class RaidBotDB {
         numberOfKeys: 0,
       });
 
-    this.redis.defineCommand("getSoundsInCategory", {
+    this.RedisClient.defineCommand("getSoundsInCategory", {
     lua: `local sort = redis.call('SORT', 'categories:' .. ARGV[1] .. ':members', 'BY', 'sounds:*->name', 'ALPHA', 'GET', '#')
     local soundlist = {}
 
@@ -72,7 +72,7 @@ export class RaidBotDB {
 
   });
 
-    this.redis.defineCommand("getCategoriesForSound", {
+    this.RedisClient.defineCommand("getCategoriesForSound", {
    lua: `local soundcategories = redis.call('SMEMBERS', 'sounds:'..ARGV[1]..':categories')
    local categorylist = {}
 
@@ -89,7 +89,7 @@ export class RaidBotDB {
    numberOfKeys: 0,
  });
 
-    this.redis.defineCommand("hashToJson", {
+    this.RedisClient.defineCommand("hashToJson", {
    lua: `local objquery = redis.call('HGETALL', KEYS[1])
    local element = {}
    for i=1,#objquery,2 do element[objquery[i]] = objquery[i+1] end
@@ -97,7 +97,7 @@ export class RaidBotDB {
    numberOfKeys: 1,
  });
 
-    this.redis.defineCommand("deleteSound", {
+    this.RedisClient.defineCommand("deleteSound", {
    lua: `local id = ARGV[1]
    redis.call('SREM', 'sounds', id)
    redis.call('ZREMRANGEBYSCORE', 'sounds:nameindex', id, id)
@@ -108,7 +108,7 @@ export class RaidBotDB {
    numberOfKeys: 0,
  });
 
-    this.redis.defineCommand("deleteCategory", {
+    this.RedisClient.defineCommand("deleteCategory", {
    lua: `local id = ARGV[1]
    redis.call('SREM', 'categories', id)
    for _, sound in ipairs(redis.call('SMEMBERS', 'sounds')) do
@@ -121,7 +121,7 @@ export class RaidBotDB {
 
 public getCategories(): Promise<Category[]> {
     return new Promise((resolve, reject) => {
-      (this.redis as any).getCategories((err: any, result: string[]) => {
+      (this.RedisClient as any).getCategories((err: any, result: string[]) => {
         if (err) {
           reject(err);
           return;
@@ -143,7 +143,7 @@ public getCategories(): Promise<Category[]> {
 
   public getSoundsInCategory(categoryid: number): Promise<Sound[]> {
     return new Promise((resolve, reject) => {
-      (this.redis as any).getSoundsInCategory(categoryid, (err: any, result: string[]) => {
+      (this.RedisClient as any).getSoundsInCategory(categoryid, (err: any, result: string[]) => {
         if (err) {
           reject(err);
         }
@@ -164,7 +164,7 @@ public getCategories(): Promise<Category[]> {
 
 public getCategoriesForSound(soundid: number): Promise<Category[]> {
     return new Promise((resolve, reject) => {
-        (this.redis as any).getCategoriesForSound(soundid, (err: any, result: string[]) => {
+        (this.RedisClient as any).getCategoriesForSound(soundid, (err: any, result: string[]) => {
           if (err) {
             reject(err);
             return;
@@ -186,8 +186,8 @@ public getCategoriesForSound(soundid: number): Promise<Category[]> {
 
 public createSound(name: string, length: number, file: string): Promise<Sound> {
     return new Promise((resolve, reject) => {
-        this.redis.incr("sounds:id").then((id: number) => {
-          this.redis.multi().sadd("sounds", id).hmset(`sounds:${id}`, "name", name, "length", length, "file", file).zadd("sounds:nameindex", id, name).exec().then(() => {
+        this.RedisClient.incr("sounds:id").then((id: number) => {
+          this.RedisClient.multi().sadd("sounds", id).hmset(`sounds:${id}`, "name", name, "length", length, "file", file).zadd("sounds:nameindex", id, name).exec().then(() => {
             resolve(new Sound(id, name, length, file));
           });
           });
@@ -196,13 +196,13 @@ public createSound(name: string, length: number, file: string): Promise<Sound> {
 
 public addSoundToCategory(soundid: number, categoryid: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      Promise.all([this.redis.sismember("categories", categoryid), this.redis.sismember("sounds", soundid)]).then(this.redis.multi().sadd(`sounds:${soundid}:categories`, categoryid).sadd(`categories:${categoryid}:members`, soundid).exec()).then(() => {resolve(); });
+      Promise.all([this.RedisClient.sismember("categories", categoryid), this.RedisClient.sismember("sounds", soundid)]).then(this.RedisClient.multi().sadd(`sounds:${soundid}:categories`, categoryid).sadd(`categories:${categoryid}:members`, soundid).exec()).then(() => {resolve(); });
     });
   }
 
 public getSoundById(soundid: number): Promise<Sound> {
     return new Promise((resolve, reject) => {
-        (this.redis as any).hashToJson(`sounds:${soundid}`, (err: any, result: string) => {
+        (this.RedisClient as any).hashToJson(`sounds:${soundid}`, (err: any, result: string) => {
           if (err) {reject(err); return; }
 
           try {
@@ -216,41 +216,41 @@ public getSoundById(soundid: number): Promise<Sound> {
 
 public createCategory(name: string): Promise<Category> {
     return new Promise((resolve, reject) => {
-        this.redis.incr("categories:id").then((id: number) => {
-          return this.redis.multi().sadd("categories", id).set(`categories:${id}:name`, name).exec().then(resolve(new Category(id, name, 0)));
+        this.RedisClient.incr("categories:id").then((id: number) => {
+          return this.RedisClient.multi().sadd("categories", id).set(`categories:${id}:name`, name).exec().then(resolve(new Category(id, name, 0)));
         });
     });
   }
 
 public deleteSound(id: number): Promise<void> {
     return new Promise((resolve, reject) => {
-        (this.redis as any).deleteSound(id, () => {resolve(); });
+        (this.RedisClient as any).deleteSound(id, () => {resolve(); });
     });
   }
 
 public deleteCategory(id: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      (this.redis as any).deleteCategory(id, () => {resolve(); });
+      (this.RedisClient as any).deleteCategory(id, () => {resolve(); });
   });
   }
 
 public initializeDB(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.redis.mset("sounds:id", 0, "categories:id", 0).then(() => {resolve(); });
+      this.RedisClient.mset("sounds:id", 0, "categories:id", 0).then(() => {resolve(); });
     });
   }
 
 public searchSounds(search: string): Promise<Sound[]> {
   return new Promise((resolve, reject) => {
       const searchstring: string = "*" + search.replace(" ", "*") + "*";
-      const stream = this.redis.zscanStream("sounds:nameindex", {match: searchstring});
+      const stream = this.RedisClient.zscanStream("sounds:nameindex", {match: searchstring});
       const sounds: Sound[] = [];
       const promises: Array<Promise<any>> = [];
 
       stream.on("data", (result: any[]) => {
         result.forEach((element) => {
           if (!isNaN(element)) {
-            promises.push((this.redis as any).hashToJson(`sounds:${element}`).then((sound: Sound) => {sounds.push(sound); }));
+            promises.push((this.RedisClient as any).hashToJson(`sounds:${element}`).then((sound: Sound) => {sounds.push(sound); }));
           }
         });
       });
@@ -261,7 +261,3 @@ public searchSounds(search: string): Promise<Sound[]> {
   });
 }
 }
-
-const client = new RaidBotDB("test");
-
-client.searchSounds("Test").then((result) => {debugger; });
