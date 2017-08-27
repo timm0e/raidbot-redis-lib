@@ -39,6 +39,20 @@ export class RaidBotDB {
       },
     );
 
+    this.RedisClient.defineCommand("getSounds", {
+      lua: `local members = redis.call("SMEMBERS", "sounds")
+      local soundlist = {}
+      for _, key in ipairs(members) do
+          local sound = {}
+          local objquery = redis.call('HGETALL', 'sounds:' .. key)
+          sound['id']=key
+          for i=1,#objquery,2 do sound[objquery[i]] = objquery[i+1] end
+          table.insert(soundlist, cjson.encode(sound))
+      end
+      return soundlist`,
+      numberOfKeys: 0,
+    });
+
     this.RedisClient.defineCommand("getCategories", {
         lua: `local sort = redis.call('SORT', 'categories', 'BY', 'categories:*:name', 'ALPHA', 'GET', '#')
       local categorylist = {}
@@ -117,6 +131,28 @@ export class RaidBotDB {
    redis.call('DEL', 'categories:' .. id .. ':members', 'categories:' .. id .. ':name')`,
    numberOfKeys: 0,
  });
+  }
+
+  public getSounds(): Promise<Sound[]> {
+    return new Promise((resolve, reject) => {
+      (this.RedisClient as any).getSounds((err: any, result: string[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const sounds = new Array<Sound>();
+
+        try {
+          result.forEach((soundString) => {
+            sounds.push(JSON.parse(soundString));
+          });
+        } catch (error) {
+          reject(error);
+        }
+
+        resolve(sounds);
+    });
+    });
   }
 
 public getCategories(): Promise<Category[]> {
