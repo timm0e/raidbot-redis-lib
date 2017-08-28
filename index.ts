@@ -272,7 +272,7 @@ public deleteCategory(id: number): Promise<void> {
 
 public initializeDB(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.RedisClient.mset("sounds:id", 0, "categories:id", 0).then(() => {resolve(); });
+      this.RedisClient.mset("sounds:id", -1, "categories:id", -1).then(() => {resolve(); });
     });
   }
 
