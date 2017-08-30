@@ -302,4 +302,27 @@ public searchSounds(search: string): Promise<Sound[]> {
       });
   });
 }
+
+public setJoinsound(uid: string, id: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+      this.RedisClient.hset("joinsounds", uid, id).then(resolve);
+  });
+}
+
+public deleteJoinsound(uid: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    this.RedisClient.hset(uid).then(resolve);
+  });
+}
+
+public getJoinsound(uid: string): Promise<Sound> {
+  return new Promise((resolve, reject) => {
+      this.RedisClient
+        .hexists("joinsounds", uid)
+        .then(() => {
+          this.RedisClient.hget("joinsounds", uid).then((soundid: number) => {this.getSoundById(soundid).then(resolve); });
+        })
+        .catch(reject);
+  });
+}
 }
