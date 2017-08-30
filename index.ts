@@ -40,7 +40,7 @@ export class RaidBotDB {
     );
 
     this.RedisClient.defineCommand("getSounds", {
-      lua: `local members = redis.call("SMEMBERS", "sounds")
+      lua: `local members = redis.call("SORT", "sounds", "BY", "sounds:*->name", "ALPHA")
       local soundlist = {}
       for _, key in ipairs(members) do
           local sound = {}
