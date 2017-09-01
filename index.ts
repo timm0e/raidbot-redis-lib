@@ -131,6 +131,17 @@ export class RaidBotDB {
    redis.call('DEL', 'categories:' .. id .. ':members', 'categories:' .. id .. ':name')`,
    numberOfKeys: 0,
  });
+
+    this.RedisClient.defineCommand("deleteJoinsound", {
+  lua: `local id = ARGV[1]
+  local set = redis.call('HGETALL', 'joinsounds')
+  for i=2,#set,2 do
+      if set[i] == id then
+          redis.call("HDEL", "joinsounds", set[i-1])
+      end
+  end`,
+  numberOfKeys: 0,
+});
   }
 
   public getSounds(): Promise<Sound[]> {
@@ -260,7 +271,11 @@ public createCategory(name: string): Promise<Category> {
 
 public deleteSound(id: number): Promise<void> {
     return new Promise((resolve, reject) => {
-        (this.RedisClient as any).deleteSound(id, () => {resolve(); });
+        (this.RedisClient as any).deleteSound(id, () => {
+          (this.RedisClient as any).deleteJoinsound(id, () => {
+            resolve();
+          });
+        });
     });
   }
 
@@ -309,7 +324,7 @@ public setJoinsound(uid: string, id: number): Promise<void> {
   });
 }
 
-public deleteJoinsound(uid: string): Promise<void> {
+public removeJoinsound(uid: string): Promise<void> {
   return new Promise((resolve, reject) => {
     this.RedisClient.hset(uid).then(resolve);
   });
