@@ -15,4 +15,5 @@ pipelines:
           - npm install
           - tsc
           - npm pack
-          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=*.tgz
+          - mv *.tgz raidbot-redis-lib.tgz
+          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@"./raidbot-redis-lib.tgz"
