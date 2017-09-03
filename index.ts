@@ -318,9 +318,9 @@ public searchSounds(search: string): Promise<Sound[]> {
   });
 }
 
-public setJoinsound(uid: string, id: number): Promise<void> {
+public setJoinsound(uid: string, sid: number): Promise<void> {
   return new Promise((resolve, reject) => {
-      this.RedisClient.hset("joinsounds", uid, id).then(resolve);
+      this.RedisClient.sismember(sid).then(() => this.RedisClient.hset("joinsounds", uid, sid)).then(resolve).catch(resolve);
   });
 }
 
