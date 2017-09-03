@@ -6,14 +6,15 @@
 image: node
 
 pipelines:
-  default:
-    - step:
-        caches:
-          - node
-        script: # Modify the commands below to build your repository.
-          - npm install -g typescript
-          - npm install
-          - tsc
-          - npm pack
-          - mv *.tgz raidbot-redis-lib.tgz
-          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@"./raidbot-redis-lib.tgz"
+  branches:
+    master:
+      - step:
+          caches:
+            - node
+          script: # Modify the commands below to build your repository.
+            - npm install -g typescript
+            - npm install
+            - tsc
+            - npm pack
+            - mv *.tgz raidbot-redis-lib.tgz
+            - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@"./raidbot-redis-lib.tgz"
