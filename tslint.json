@@ -10,6 +10,15 @@
         ],
         "max-classes-per-file": [
             false
+        ],
+        "trailing-comma": [
+            true,
+            {
+                "multiline":
+                {
+                    "functions": "never"
+                }
+            }
         ]
     },
     "rulesDirectory": []
