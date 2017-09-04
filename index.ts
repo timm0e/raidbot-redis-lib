@@ -245,7 +245,7 @@ export class RaidBotDB {
           .multi()
           .sadd("sounds", id)
           .hmset(`sounds:${id}`, "name", name, "length", length, "file", file)
-          .zadd("sounds:nameindex", id, name)
+          .zadd("sounds:nameindex", id, name.toLowerCase())
           .exec()
           .then(() => {
             resolve(new Sound(id, name, length, file));
@@ -338,7 +338,7 @@ export class RaidBotDB {
 
   public searchSounds(search: string): Promise<Sound[]> {
     return new Promise((resolve, reject) => {
-      const searchstring: string = "*" + search.replace(" ", "*") + "*";
+      const searchstring: string = "*" + search.toLowerCase().replace(" ", "*") + "*";
       const stream = this.RedisClient.zscanStream("sounds:nameindex", {
         match: searchstring,
       });
