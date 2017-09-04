@@ -149,7 +149,7 @@ export class RaidBotDB {
         const sounds = new Array<Sound>();
 
         try {
-          result.forEach((soundString) => {
+          result.forEach(soundString => {
             sounds.push(JSON.parse(soundString));
           });
         } catch (error) {
@@ -171,7 +171,7 @@ export class RaidBotDB {
         const categories = new Array<Category>();
 
         try {
-          result.forEach((categoryString) => {
+          result.forEach(categoryString => {
             categories.push(JSON.parse(categoryString));
           });
         } catch (error) {
@@ -195,7 +195,7 @@ export class RaidBotDB {
           const sounds = new Array<Sound>();
 
           try {
-            result.forEach((soundString) => {
+            result.forEach(soundString => {
               sounds.push(JSON.parse(soundString));
             });
           } catch (error) {
@@ -203,7 +203,7 @@ export class RaidBotDB {
           }
 
           resolve(sounds);
-        }
+        },
       );
     });
   }
@@ -221,7 +221,7 @@ export class RaidBotDB {
           const categories = new Array<Category>();
 
           try {
-            result.forEach((categoryString) => {
+            result.forEach(categoryString => {
               categories.push(JSON.parse(categoryString));
             });
           } catch (error) {
@@ -229,7 +229,7 @@ export class RaidBotDB {
           }
 
           resolve(categories);
-        }
+        },
       );
     });
   }
@@ -237,7 +237,7 @@ export class RaidBotDB {
   public createSound(
     name: string,
     length: number,
-    file: string
+    file: string,
   ): Promise<Sound> {
     return new Promise((resolve, reject) => {
       this.RedisClient.incr("sounds:id").then((id: number) => {
@@ -256,7 +256,7 @@ export class RaidBotDB {
 
   public addSoundToCategory(
     soundid: number,
-    categoryid: number
+    categoryid: number,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       Promise.all([
@@ -268,7 +268,7 @@ export class RaidBotDB {
             .multi()
             .sadd(`sounds:${soundid}:categories`, categoryid)
             .sadd(`categories:${categoryid}:members`, soundid)
-            .exec()
+            .exec(),
         )
         .then(() => {
           resolve();
@@ -292,7 +292,7 @@ export class RaidBotDB {
           } catch (error) {
             reject(error);
           }
-        }
+        },
       );
     });
   }
@@ -346,7 +346,7 @@ export class RaidBotDB {
       const promises: Array<Promise<any>> = [];
 
       stream.on("data", (result: any[]) => {
-        result.forEach((element) => {
+        result.forEach(element => {
           if (!isNaN(element)) {
             promises.push(
               (this.RedisClient as any)
@@ -355,7 +355,7 @@ export class RaidBotDB {
                   const sound: Sound = JSON.parse(json);
                   sound.id = element;
                   sounds.push(sound);
-                })
+                }),
             );
           }
         });
@@ -404,7 +404,7 @@ export class RaidBotDB {
         this.RedisClient
           .hset("sounds:" + sid, "name", name)
           .then(resolve)
-          .catch(reject)
+          .catch(reject),
       );
     });
   }
