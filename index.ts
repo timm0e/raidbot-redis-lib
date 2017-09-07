@@ -338,7 +338,8 @@ export class RaidBotDB {
 
   public searchSounds(search: string): Promise<Sound[]> {
     return new Promise((resolve, reject) => {
-      const searchstring: string = "*" + search.toLowerCase().replace(" ", "*") + "*";
+      const searchstring: string =
+        "*" + search.toLowerCase().replace(" ", "*") + "*";
       const stream = this.RedisClient.zscanStream("sounds:nameindex", {
         match: searchstring,
       });
@@ -406,6 +407,20 @@ export class RaidBotDB {
           .then(resolve)
           .catch(reject),
       );
+    });
+  }
+
+  public removeSoundFromCategory(
+    categoryId: number,
+    soundId: number,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.RedisClient
+        .pipeline()
+        .srem(`sounds:${soundId}:categories`, categoryId)
+        .srem(`categories:${categoryId}:members`, soundId)
+        .exec()
+        .then(() => resolve());
     });
   }
 }
