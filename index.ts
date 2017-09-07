@@ -5,12 +5,14 @@ export class Sound {
   public name: string;
   public length: number;
   public file: string;
+  public owner: string;
 
-  constructor(id: number, name: string, length: number, file: string) {
+  constructor(id: number, name: string, length: number, file: string, owner: string) {
     this.id = id;
     this.name = name;
     this.length = length;
     this.file = file;
+    this.owner = owner;
   }
 }
 
@@ -237,6 +239,7 @@ export class RaidBotDB {
   public createSound(
     name: string,
     length: number,
+    owner: string,
     file: string,
   ): Promise<Sound> {
     return new Promise((resolve, reject) => {
@@ -248,7 +251,7 @@ export class RaidBotDB {
           .zadd("sounds:nameindex", id, name.toLowerCase())
           .exec()
           .then(() => {
-            resolve(new Sound(id, name, length, file));
+            resolve(new Sound(id, name, length, owner, file));
           });
       });
     });
