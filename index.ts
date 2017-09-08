@@ -247,7 +247,7 @@ export class RaidBotDB {
         this.RedisClient
           .multi()
           .sadd("sounds", id)
-          .hmset(`sounds:${id}`, "name", name, "length", length, "file", file)
+          .hmset(`sounds:${id}`, "name", name, "length", length, "file", file, "owner", owner)
           .zadd("sounds:nameindex", id, name.toLowerCase())
           .exec()
           .then(() => {
