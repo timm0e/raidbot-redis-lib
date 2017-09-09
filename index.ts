@@ -426,4 +426,12 @@ export class RaidBotDB {
         .then(() => resolve());
     });
   }
+
+  public getSoundsNumber(): Promise<number> {
+    return new Promise((resolve, reject) => {
+        this.RedisClient
+          .scard("sounds")
+          .then((num: number) => resolve(num));
+    });
+  }
 }
