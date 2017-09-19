@@ -91,7 +91,7 @@ export class RaidBotDB {
        local category = {}
        category["id"] = key
        category["name"] = redis.call('GET', 'categories:' .. key .. ':name')
-       category["members"] = redis.call('SMEMBERS', 'categories:' .. key .. ':members')[1]
+       category["members"] = redis.call('SCARD', 'categories:' .. key .. ':members')[1]
        table.insert(categorylist, cjson.encode(category))
    end
 
