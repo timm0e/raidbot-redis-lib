@@ -7,7 +7,13 @@ export class Sound {
   public file: string;
   public owner: string;
 
-  constructor(id: number, name: string, length: number, file: string, owner: string) {
+  constructor(
+    id: number,
+    name: string,
+    length: number,
+    file: string,
+    owner: string,
+  ) {
     this.id = id;
     this.name = name;
     this.length = length;
@@ -91,7 +97,7 @@ export class RaidBotDB {
        local category = {}
        category["id"] = key
        category["name"] = redis.call('GET', 'categories:' .. key .. ':name')
-       category["members"] = redis.call('SCARD', 'categories:' .. key .. ':members')[1]
+       category["members"] = redis.call('SCARD', 'categories:' .. key .. ':members')
        table.insert(categorylist, cjson.encode(category))
    end
 
@@ -137,6 +143,25 @@ export class RaidBotDB {
           redis.call("HDEL", "joinsounds", set[i-1])
       end
   end`,
+      numberOfKeys: 0,
+    });
+
+    this.RedisClient.defineCommand("removeSoundFromCategory", {
+      lua: `local cat_id = ARGV[1]
+      local sound_id = ARGV[2]
+
+      local isMember = redis.call('SISMEMBER', 'categories:'..cat_id..':members', sound_id)
+      local membercount = redis.call('SCARD', 'categories:'..cat_id..':members')
+
+      if isMember and membercount == 1 then
+          redis.call('SREM', 'categories', cat_id)
+          redis.call('DEL', 'categories:' .. cat_id .. ':members', 'categories:' .. cat_id .. ':name')
+      else
+          redis.call('categories:' .. cat_id .. ':members', sound_id)
+      end
+
+      redis.call('SREM', 'sounds:'..sound_id..':categories', cat_id)
+      return`,
       numberOfKeys: 0,
     });
   }
@@ -247,7 +272,17 @@ export class RaidBotDB {
         this.RedisClient
           .multi()
           .sadd("sounds", id)
-          .hmset(`sounds:${id}`, "name", name, "length", length, "file", file, "owner", owner)
+          .hmset(
+            `sounds:${id}`,
+            "name",
+            name,
+            "length",
+            length,
+            "file",
+            file,
+            "owner",
+            owner,
+          )
           .zadd("sounds:nameindex", id, name.toLowerCase())
           .exec()
           .then(() => {
@@ -418,20 +453,15 @@ export class RaidBotDB {
     soundId: number,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.RedisClient
-        .pipeline()
-        .srem(`sounds:${soundId}:categories`, categoryId)
-        .srem(`categories:${categoryId}:members`, soundId)
-        .exec()
+      (this.RedisClient as any)
+        .removeSoundFromCategory(categoryId, soundId)
         .then(() => resolve());
     });
   }
 
   public getSoundsNumber(): Promise<number> {
     return new Promise((resolve, reject) => {
-        this.RedisClient
-          .scard("sounds")
-          .then((num: number) => resolve(num));
+      this.RedisClient.scard("sounds").then((num: number) => resolve(num));
     });
   }
 }
