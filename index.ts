@@ -118,8 +118,14 @@ export class RaidBotDB {
       lua: `local id = ARGV[1]
    redis.call('SREM', 'sounds', id)
    redis.call('ZREMRANGEBYSCORE', 'sounds:nameindex', id, id)
-   for _, category in ipairs(redis.call('SMEMBERS', 'categories')) do
-       redis.call('SREM', 'categories:' .. category .. ':members', id)
+   for _, category in ipairs(redis.call('SMEMBERS', 'sounds:' .. id .. ':categories')) do
+    redis.call('SREM', 'categories:' .. category .. ':members', id)
+    local membercount = redis.call('SCARD', 'categories:'..category..':members')
+
+    if membercount == 0 then
+        redis.call('SREM', 'categories', category)
+        redis.call('DEL', 'categories:' .. category .. ':members', 'categories:' .. category .. ':name')
+    end
    end
    redis.call('DEL', 'sounds:' .. id, 'sounds:' .. id .. ':categories')`,
       numberOfKeys: 0,
@@ -157,7 +163,7 @@ export class RaidBotDB {
           redis.call('SREM', 'categories', cat_id)
           redis.call('DEL', 'categories:' .. cat_id .. ':members', 'categories:' .. cat_id .. ':name')
       else
-          redis.call('categories:' .. cat_id .. ':members', sound_id)
+          redis.call('SREM', 'categories:' .. cat_id .. ':members', sound_id)
       end
 
       redis.call('SREM', 'sounds:'..sound_id..':categories', cat_id)
