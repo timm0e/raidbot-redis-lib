@@ -36,12 +36,16 @@ export class Category {
 
 export class RaidBotDB {
   public readonly RedisClient: ioredis.Redis;
+  private readonly PubSubClient: ioredis.Redis;
+  private PubSubMap: any;
 
   constructor(connname: string, database?: number) {
     this.RedisClient = new ioredis({
       connectionName: connname,
       db: database ? database : 0,
     });
+
+    this.PubSubMap = {};
 
     this.RedisClient.defineCommand("getSounds", {
       lua: `local members = redis.call("SORT", "sounds", "BY", "sounds:*->name", "ALPHA")
@@ -170,6 +174,14 @@ export class RaidBotDB {
       return`,
       numberOfKeys: 0,
     });
+
+    // PUB/SUB
+
+    this.PubSubClient = new ioredis({
+      connectionName: connname + "PS",
+    });
+
+    this.PubSubClient.on("message", this.handlePubSub);
   }
 
   public getSounds(): Promise<Sound[]> {
@@ -470,4 +482,27 @@ export class RaidBotDB {
       this.RedisClient.scard("sounds").then((num: number) => resolve(num));
     });
   }
+
+  // FIXME: this https://www.youtube.com/watch?v=tvocUcbCupA
+  public on(channel: string, callback: (message: any) => any): void {
+    const map = this.PubSubMap;
+    this.PubSubClient.subscribe(channel).then(() => {map[channel] = callback; });
+  }
+
+  public removeListener(channel: string): void {
+    const map = this.PubSubMap;
+    this.PubSubClient.unsubscribe(channel).then(() => {delete map[channel]; });
+  }
+
+  public send(channel: string, message: any): void {
+    this.PubSubClient.publish(channel, JSON.stringify(message));
+  }
+
+  private handlePubSub(channel: string, message: string): void {
+    const handler: (message: string) => any = this.PubSubMap[channel];
+    if (handler != null) {
+      handler(JSON.parse(message));
+    }
+  }
+
 }
