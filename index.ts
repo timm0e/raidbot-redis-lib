@@ -483,7 +483,6 @@ export class RaidBotDB {
     });
   }
 
-  // FIXME: this https://www.youtube.com/watch?v=tvocUcbCupA
   public on(channel: string, callback: (message: any) => any): void {
     const map = this.PubSubMap;
     this.PubSubClient.subscribe(channel).then(() => {map[channel] = callback; });
@@ -498,7 +497,7 @@ export class RaidBotDB {
     this.PubSubClient.publish(channel, JSON.stringify(message));
   }
 
-  private handlePubSub(channel: string, message: string): void {
+  private handlePubSub = (channel: string, message: string): void => {
     const handler: (message: string) => any = this.PubSubMap[channel];
     if (handler != null) {
       handler(JSON.parse(message));
