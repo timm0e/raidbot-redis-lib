@@ -1,7 +1,7 @@
 {
   "name": "raidbot-redis-lib",
   "version": "1.0.0",
-  "description": "Redis Gateway for RaidBot",
+  "description": "Redis Library for RaidBot",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
