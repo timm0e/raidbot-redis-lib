@@ -43,6 +43,8 @@ export class RaidBotDB {
     this.RedisClient = new ioredis({
       connectionName: connname,
       db: database ? database : 0,
+      host: process.env.RAIDBOT_REDIS_HOST,
+      port: process.env.RAIDBOT_REDIS_PORT ? parseInt(process.env.RAIDBOT_REDIS_PORT!, 10) : undefined,
     });
 
     this.PubSubMap = {};
