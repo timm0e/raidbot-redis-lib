@@ -181,6 +181,8 @@ export class RaidBotDB {
 
     this.PubSubClient = new ioredis({
       connectionName: connname + "PS",
+      host: process.env.RAIDBOT_REDIS_HOST,
+      port: process.env.RAIDBOT_REDIS_PORT ? parseInt(process.env.RAIDBOT_REDIS_PORT!, 10) : undefined,
     });
 
     this.PubSubClient.on("message", this.handlePubSub);
