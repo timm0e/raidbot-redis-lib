@@ -464,6 +464,8 @@ export class RaidBotDB {
       this.RedisClient.sismember("sounds", sid).then(() =>
         this.RedisClient
           .hset("sounds:" + sid, "name", name)
+          .zremrangebyscore("sounds:nameindex", sid, sid)
+          .zadd("sounds:nameindex", sid, name.toLowerCase())
           .then(resolve)
           .catch(reject),
       );
