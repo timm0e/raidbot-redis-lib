@@ -44,13 +44,15 @@ export class RaidBotDB {
       connectionName: connname,
       db: database ? database : 0,
       host: process.env.RAIDBOT_REDIS_HOST,
-      port: process.env.RAIDBOT_REDIS_PORT ? parseInt(process.env.RAIDBOT_REDIS_PORT!, 10) : undefined,
+      port: process.env.RAIDBOT_REDIS_PORT
+        ? parseInt(process.env.RAIDBOT_REDIS_PORT!, 10)
+        : undefined,
     });
 
     this.PubSubMap = {};
 
     this.RedisClient.defineCommand("getSounds", {
-      lua: `local members = redis.call("SORT", "sounds", "BY", "sounds:*->name", "ALPHA")
+      lua: `local members = redis.call("SORT", "sounds", "BY", "idlc:*", "ALPHA")
       local soundlist = {}
       for _, key in ipairs(members) do
           local sound = {}
@@ -79,7 +81,7 @@ export class RaidBotDB {
     });
 
     this.RedisClient.defineCommand("getSoundsInCategory", {
-      lua: `local sort = redis.call('SORT', 'categories:' .. ARGV[1] .. ':members', 'BY', 'sounds:*->name', 'ALPHA', 'GET', '#')
+      lua: `local sort = redis.call('SORT', 'categories:' .. ARGV[1] .. ':members', 'BY', 'idlc:*', 'ALPHA', 'GET', '#')
     local soundlist = {}
 
     for _, key in ipairs(sort) do
@@ -122,8 +124,10 @@ export class RaidBotDB {
 
     this.RedisClient.defineCommand("deleteSound", {
       lua: `local id = ARGV[1]
+   local lname = string.lower(redis.call('HGET', 'sounds:'..id, 'name'))
    redis.call('SREM', 'sounds', id)
-   redis.call('ZREMRANGEBYSCORE', 'sounds:nameindex', id, id)
+   redis.call('SREM', 'sounds:nameindex', lname)
+   redis.call('DEL', 'idlc:'..id, 'lcid:'..lname)
    for _, category in ipairs(redis.call('SMEMBERS', 'sounds:' .. id .. ':categories')) do
     redis.call('SREM', 'categories:' .. category .. ':members', id)
     local membercount = redis.call('SCARD', 'categories:'..category..':members')
@@ -182,7 +186,9 @@ export class RaidBotDB {
     this.PubSubClient = new ioredis({
       connectionName: connname + "PS",
       host: process.env.RAIDBOT_REDIS_HOST,
-      port: process.env.RAIDBOT_REDIS_PORT ? parseInt(process.env.RAIDBOT_REDIS_PORT!, 10) : undefined,
+      port: process.env.RAIDBOT_REDIS_PORT
+        ? parseInt(process.env.RAIDBOT_REDIS_PORT!, 10)
+        : undefined,
     });
 
     this.PubSubClient.on("message", this.handlePubSub);
@@ -234,8 +240,7 @@ export class RaidBotDB {
 
   public getSoundsInCategory(categoryid: number): Promise<Sound[]> {
     return new Promise((resolve, reject) => {
-      (this
-        .RedisClient as any).getSoundsInCategory(
+      (this.RedisClient as any).getSoundsInCategory(
         categoryid,
         (err: any, result: string[]) => {
           if (err) {
@@ -259,8 +264,7 @@ export class RaidBotDB {
 
   public getCategoriesForSound(soundid: number): Promise<Category[]> {
     return new Promise((resolve, reject) => {
-      (this
-        .RedisClient as any).getCategoriesForSound(
+      (this.RedisClient as any).getCategoriesForSound(
         soundid,
         (err: any, result: string[]) => {
           if (err) {
@@ -291,8 +295,7 @@ export class RaidBotDB {
   ): Promise<Sound> {
     return new Promise((resolve, reject) => {
       this.RedisClient.incr("sounds:id").then((id: number) => {
-        this.RedisClient
-          .multi()
+        this.RedisClient.multi()
           .sadd("sounds", id)
           .hmset(
             `sounds:${id}`,
@@ -305,7 +308,9 @@ export class RaidBotDB {
             "owner",
             owner,
           )
-          .zadd("sounds:nameindex", id, name.toLowerCase())
+          .sadd("sounds:nameindex", name.toLowerCase())
+          .set("lcid:" + name.toLowerCase(), id.toString())
+          .set("idlc:" + id.toString(), name.toLowerCase())
           .exec()
           .then(() => {
             resolve(new Sound(id, name, length, owner, file));
@@ -324,8 +329,7 @@ export class RaidBotDB {
         this.RedisClient.sismember("sounds", soundid),
       ])
         .then(
-          this.RedisClient
-            .multi()
+          this.RedisClient.multi()
             .sadd(`sounds:${soundid}:categories`, categoryid)
             .sadd(`categories:${categoryid}:members`, soundid)
             .exec(),
@@ -338,8 +342,7 @@ export class RaidBotDB {
 
   public getSoundById(soundid: number): Promise<Sound> {
     return new Promise((resolve, reject) => {
-      (this
-        .RedisClient as any).hashToJson(
+      (this.RedisClient as any).hashToJson(
         `sounds:${soundid}`,
         (err: any, result: string) => {
           if (err) {
@@ -360,8 +363,7 @@ export class RaidBotDB {
   public createCategory(name: string): Promise<Category> {
     return new Promise((resolve, reject) => {
       this.RedisClient.incr("categories:id").then((id: number) => {
-        return this.RedisClient
-          .multi()
+        return this.RedisClient.multi()
           .sadd("categories", id)
           .set(`categories:${id}:name`, name)
           .exec()
@@ -400,7 +402,7 @@ export class RaidBotDB {
     return new Promise((resolve, reject) => {
       const searchstring: string =
         "*" + search.toLowerCase().replace(" ", "*") + "*";
-      const stream = this.RedisClient.zscanStream("sounds:nameindex", {
+      const stream = this.RedisClient.sscanStream("sounds:nameindex", {
         match: searchstring,
       });
       const sounds: Sound[] = [];
@@ -408,17 +410,18 @@ export class RaidBotDB {
 
       stream.on("data", (result: any[]) => {
         result.forEach(element => {
-          if (!isNaN(element)) {
-            promises.push(
-              (this.RedisClient as any)
-                .hashToJson(`sounds:${element}`)
-                .then((json: string) => {
-                  const sound: Sound = JSON.parse(json);
-                  sound.id = element;
-                  sounds.push(sound);
-                }),
-            );
-          }
+          promises.push(
+            Promise.resolve(() => this.RedisClient.get("lcid:" + element)).then(
+              id =>
+                (this.RedisClient as any)
+                  .hashToJson(`sounds:${element}`)
+                  .then((json: string) => {
+                    const sound: Sound = JSON.parse(json);
+                    sound.id = element;
+                    sounds.push(sound);
+                  }),
+            ),
+          );
         });
       });
 
@@ -432,8 +435,7 @@ export class RaidBotDB {
 
   public setJoinsound(uid: string, sid: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.RedisClient
-        .sismember("sounds", sid)
+      this.RedisClient.sismember("sounds", sid)
         .then(() => this.RedisClient.hset("joinsounds", uid, sid))
         .then(resolve)
         .catch(resolve);
@@ -448,8 +450,7 @@ export class RaidBotDB {
 
   public getJoinsound(uid: string): Promise<Sound> {
     return new Promise((resolve, reject) => {
-      this.RedisClient
-        .hexists("joinsounds", uid)
+      this.RedisClient.hexists("joinsounds", uid)
         .then(() => {
           this.RedisClient.hget("joinsounds", uid).then((soundid: number) => {
             this.getSoundById(soundid).then(resolve);
@@ -461,14 +462,21 @@ export class RaidBotDB {
 
   public renameSound(sid: number, name: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.RedisClient.sismember("sounds", sid).then(() =>
-        this.RedisClient
+      this.RedisClient.sismember("sounds", sid)
+        .then(() => this.getSoundById(sid))
+        .then((sound: Sound) => sound.name.toLowerCase())
+        .then((oldname: string) =>
+          this.RedisClient.multi()
           .hset("sounds:" + sid, "name", name)
-          .zremrangebyscore("sounds:nameindex", sid, sid)
-          .zadd("sounds:nameindex", sid, name.toLowerCase())
-          .then(resolve)
-          .catch(reject),
-      );
+            .srem("sounds:nameindex", oldname)
+            .sadd("sounds:nameindex", name.toLowerCase())
+            .del("lcid:" + oldname)
+            .set("lcid:" + name.toLowerCase(), sid)
+            .set("idlc:" + sid, name.toLowerCase())
+            .exec()
+            .then(resolve)
+            .catch(reject),
+        );
     });
   }
 
@@ -491,12 +499,16 @@ export class RaidBotDB {
 
   public on(channel: string, callback: (message: any) => any): void {
     const map = this.PubSubMap;
-    this.PubSubClient.subscribe(channel).then(() => {map[channel] = callback; });
+    this.PubSubClient.subscribe(channel).then(() => {
+      map[channel] = callback;
+    });
   }
 
   public removeListener(channel: string): void {
     const map = this.PubSubMap;
-    this.PubSubClient.unsubscribe(channel).then(() => {delete map[channel]; });
+    this.PubSubClient.unsubscribe(channel).then(() => {
+      delete map[channel];
+    });
   }
 
   public send(channel: string, message: any): void {
@@ -509,5 +521,4 @@ export class RaidBotDB {
       handler(JSON.parse(message));
     }
   }
-
 }
